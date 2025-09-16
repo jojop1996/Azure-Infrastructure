@@ -1,0 +1,36 @@
+name: 'Setup Bicep'
+description: 'Sets up system, Azure CLI, tools repo, deployment script, and Azure env.'
+runs:
+  using: 'composite'
+  steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    - name: Install system dependencies
+      shell: bash
+      run: |
+        sudo apt update -qq > /dev/null 2>&1 && sudo apt upgrade -y -qq > /dev/null 2>&1
+        sudo apt install -y -qq git curl libicu-dev > /dev/null 2>&1
+    - name: Install Azure CLI
+      shell: bash
+      run: curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+    - name: Checkout tools repository
+      uses: actions/checkout@master
+      with:
+        repository: jojop1996/Tools
+        token: ${{ env.GITHUB_TOKEN }}
+        path: tools
+    - name: Set up deployment script
+      shell: bash
+      run: chmod +x ${{ github.workspace }}/tools/azure/bicep/deploy_bicep.sh
+    - name: Configure Azure environment
+      shell: bash
+      env:
+        AZURE_CLIENT_ID: ${{ env.AZURE_CLIENT_ID }}
+        AZURE_CLIENT_SECRET: ${{ env.AZURE_CLIENT_SECRET }}
+        AZURE_TENANT_ID: ${{ env.AZURE_TENANT_ID }}
+        AZURE_SUBSCRIPTION_ID: ${{ env.AZURE_SUBSCRIPTION_ID }}
+      run: |
+        echo "AZURE_CLIENT_ID=$AZURE_CLIENT_ID" >> $GITHUB_ENV
+        echo "AZURE_CLIENT_SECRET=$AZURE_CLIENT_SECRET" >> $GITHUB_ENV
+        echo "AZURE_TENANT_ID=$AZURE_TENANT_ID" >> $GITHUB_ENV
+        echo "AZURE_SUBSCRIPTION_ID=$AZURE_SUBSCRIPTION_ID" >> $GITHUB_ENV

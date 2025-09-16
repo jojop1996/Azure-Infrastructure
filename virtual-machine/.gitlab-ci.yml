@@ -1,0 +1,46 @@
+image: ubuntu:latest
+
+stages:
+  - plan
+  - deploy
+
+.config:
+  variables:
+    TOOLS_DIR: "$CI_PROJECT_DIR/tools"
+  before_script:
+    - echo "Updating package lists and upgrading installed packages..."
+    - apt update -qq > /dev/null 2>&1 && apt upgrade -y > /dev/null 2>&1
+
+    - echo "Installing git..."
+    - apt install -y -qq git curl libicu-dev > /dev/null 2>&1
+
+    - echo "Installing Azure CLI"
+    - curl -sL https://aka.ms/InstallAzureCLIDeb | bash
+
+    - echo "Cloning tools repository..."
+    - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.techhouse.dev/jordan/tools.git $TOOLS_DIR
+
+    - echo "Making deploy_bicep.sh executable..."
+    - chmod +x $TOOLS_DIR/azure/bicep/deploy_bicep.sh
+
+    - echo "Exporting Azure environment variables..."
+    - export AZURE_CLIENT_ID="$AZURE_CLIENT_ID"
+    - export AZURE_CLIENT_SECRET="$AZURE_CLIENT_SECRET"
+    - export AZURE_TENANT_ID="$AZURE_TENANT_ID"
+    - export AZURE_SUBSCRIPTION_ID="$AZURE_SUBSCRIPTION_ID"
+
+bicep_plan:
+  stage: plan
+  extends: .config
+  script:
+    - echo "Running deployment plan..."
+    - $TOOLS_DIR/azure/bicep/deploy_bicep.sh --type plan --create-rg --parameters-file "parameters.linux.bicepparam"
+  when: manual
+
+bicep_deploy:
+  stage: deploy
+  extends: .config
+  script:
+    - echo "Running deployment..."
+    - $TOOLS_DIR/azure/bicep/deploy_bicep.sh --type deploy --parameters-file "parameters.bicepparam"
+  when: manual

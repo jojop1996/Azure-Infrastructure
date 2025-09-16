@@ -1,0 +1,27 @@
+name: Bicep Plan
+
+on:
+  push:
+
+jobs:
+  plan:
+    name: Azure AKS Bicep Plan
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Setup Bicep Environment
+        uses: ./.github/actions/setup-bicep
+        env:
+          GITHUB_TOKEN: ${{ secrets.github_token }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Run Bicep deployment plan
+        run: |
+          ${{ github.workspace }}/tools/azure/bicep/deploy_bicep.sh \
+            --type plan \
+            --create-rg \
+            --parameters-file "parameters.bicepparam"
