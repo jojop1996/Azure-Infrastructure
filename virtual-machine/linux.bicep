@@ -24,12 +24,27 @@ param instanceCount int = 2
 ])
 param deploymentType string = 'vmss'
 
-@description('The Ubuntu version for the VM(s).')
+@description('Publisher of the Linux image.')
+@allowed([
+  'Canonical'
+])
+param imagePublisher string = 'Canonical'
+
+@description('Offer of the Windows image.')
+@allowed([
+  'UbuntuServer'
+])
+param imageOffer string = 'UbuntuServer'
+
+@description('The Linux version for the VM(s).')
 @allowed([
   'Ubuntu-2004'
   'Ubuntu-2204'
 ])
-param ubuntuOSVersion string = 'Ubuntu-2204'
+param imageSku string
+
+@description('Version of the Windows image.')
+param imageVersion string = 'latest'
 
 @description('Upgrade policy mode for VMSS (Manual, Automatic, Rolling).')
 @allowed([
@@ -64,7 +79,7 @@ param enableAcceleratedNetworking bool = false
 @description('Tags applied to all resources created by this deployment.')
 param tags object = {}
 
-module sshKeyModule '../tools/azure/bicep/modules/ssh-key.bicep' = {
+module sshKeyModule '../../azure-tools/bicep/modules/ssh-key.bicep' = {
   name: 'sshKey'
   params: {
     sshKeyName: sshKeyName
@@ -72,7 +87,7 @@ module sshKeyModule '../tools/azure/bicep/modules/ssh-key.bicep' = {
   }
 }
 
-module vmModule '../tools/azure/bicep/modules/vm.bicep' = {
+module vmModule '../../azure-tools/bicep/modules/virtual-machine.bicep' = {
   name: 'vmDeployment'
   params: {
     vmName: vmName
@@ -82,7 +97,10 @@ module vmModule '../tools/azure/bicep/modules/vm.bicep' = {
     adminPasswordOrKey: sshPublicKey
     deploymentType: deploymentType
     instanceCount: instanceCount
-    ubuntuOSVersion: ubuntuOSVersion
+    imagePublisher: imagePublisher
+    imageOffer: imageOffer
+    imageSku: imageSku
+    imageVersion: imageVersion
     upgradePolicyMode: upgradePolicyMode
     scaleOutThreshold: scaleOutThreshold
     scaleInThreshold: scaleInThreshold

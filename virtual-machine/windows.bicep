@@ -11,6 +11,18 @@ param instanceCount int = 1
 @description('Name of the VM or VM Scale Set.')
 param vmssName string = 'win-vm'
 
+@description('Publisher of the Windows image.')
+@allowed([
+  'MicrosoftWindowsServer'
+])
+param imagePublisher string = 'MicrosoftWindowsServer'
+
+@description('Offer of the Windows image.')
+@allowed([
+  'WindowsServer'
+])
+param imageOffer string = 'WindowsServer'
+
 @description('The Windows version for the VM(s).')
 @allowed([
   '2019-Datacenter'
@@ -20,7 +32,10 @@ param vmssName string = 'win-vm'
   '2019-Datacenter-Gen2'
   '2022-Datacenter-Gen2'
 ])
-param windowsOSVersion string = '2022-Datacenter-Gen2'
+param imageSku string
+
+@description('Version of the Windows image.')
+param imageVersion string = 'latest'
 
 @description('CPU percentage threshold to trigger scale-out (increase instance count).')
 @minValue(1)
@@ -62,7 +77,7 @@ param enableAcceleratedNetworking bool = false
 @description('Tags applied to all resources created by this deployment.')
 param tags object = {}
 
-module vmModule '../tools/azure/bicep/modules/vm.bicep' = {
+module vmModule '../../azure-tools/bicep/modules/virtual-machine.bicep' = {
   name: 'vmDeployment'
   params: {
     vmName: vmssName
@@ -72,7 +87,10 @@ module vmModule '../tools/azure/bicep/modules/vm.bicep' = {
     authenticationType: 'password'
     adminPasswordOrKey: adminPassword
     instanceCount: instanceCount
-    windowsOSVersion: windowsOSVersion
+    imagePublisher: imagePublisher
+    imageOffer: imageOffer
+    imageSku: imageSku
+    imageVersion: imageVersion
     upgradePolicyMode: upgradePolicyMode
     scaleOutThreshold: scaleOutThreshold
     scaleInThreshold: scaleInThreshold
