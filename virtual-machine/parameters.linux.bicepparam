@@ -11,7 +11,7 @@ param sshPublicKey = loadTextContent('secrets/keys/id_rsa.pub')
 // VMSS and autoscaling configuration
 param deploymentType = 'vmss'
 param instanceCount = 2
-param ubuntuOSVersion = 'Ubuntu-2204'
+param imageSku = 'Ubuntu-2204'
 param upgradePolicyMode = 'Rolling'
 param scaleOutThreshold = 60
 param scaleInThreshold = 20
