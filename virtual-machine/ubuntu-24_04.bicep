@@ -184,3 +184,29 @@ module virtualNetwork 'br/public:avm/res/network/virtual-network:0.7.0' = {
     ]
   }
 }
+
+module publicIpAddress 'br/public:avm/res/network/public-ip-address:0.9.0' = {
+  name: 'publicIpAddressDeployment'
+  params: {
+    // Required parameters
+    name: 'npiamin001'
+    // Non-required parameters
+    location: 'eastus'
+  }
+}
+
+module loadBalancer 'br/public:avm/res/network/load-balancer:0.4.2' = {
+  name: 'loadBalancerDeployment'
+  params: {
+    // Required parameters
+    frontendIPConfigurations: [
+      {
+        name: 'publicIPConfig1'
+        publicIPAddressId: publicIpAddress.outputs.resourceId
+      }
+    ]
+    name: 'nlbmin001'
+    // Non-required parameters
+    location: 'eastus'
+  }
+}
