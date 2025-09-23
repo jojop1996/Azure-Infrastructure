@@ -1,7 +1,10 @@
+@description('Primary region for all Azure resources.')
+@minLength(1)
+param location string = resourceGroup().location
+
 module virtualMachineScaleSet 'br/public:avm/res/compute/virtual-machine-scale-set:0.11.0' = {
   name: 'virtualMachineScaleSetDeployment'
   params: {
-    // Required parameters
     adminPassword: loadTextContent('temp/linux_password')
     adminUsername: 'scaleSetAdmin'
     imageReference: {
@@ -14,15 +17,18 @@ module virtualMachineScaleSet 'br/public:avm/res/compute/virtual-machine-scale-s
           {
             name: 'ipconfig1'
             properties: {
-              publicIPAddressConfiguration: {
-                name: 'pip-cvmsslinmax'
-              }
               subnet: {
                 id: virtualNetwork.outputs.subnetResourceIds[0]
               }
+              loadBalancerBackendAddressPools: [
+                {
+                  id: '${loadBalancer.outputs.resourceId}/backendAddressPools/backendAddressPool1'
+                }
+              ]
             }
           }
         ]
+        networkSecurityGroupResourceId: networkSecurityGroup.outputs.resourceId
         nicSuffix: '-nic01'
       }
     ]
@@ -35,75 +41,12 @@ module virtualMachineScaleSet 'br/public:avm/res/compute/virtual-machine-scale-s
     }
     osType: 'Linux'
     skuName: 'Standard_D2s_v3'
-    // Non-required parameters
     availabilityZones: [
       2
     ]
     bootDiagnosticEnabled: true
-    // bootDiagnosticStorageAccountName: '<bootDiagnosticStorageAccountName>'
-    // dataDisks: [
-    //   {
-    //     caching: 'ReadOnly'
-    //     createOption: 'Empty'
-    //     diskSizeGB: 256
-    //     lun: 1
-    //     managedDisk: {
-    //       storageAccountType: 'Premium_LRS'
-    //     }
-    //   }
-    //   {
-    //     caching: 'ReadOnly'
-    //     createOption: 'Empty'
-    //     diskSizeGB: 128
-    //     lun: 2
-    //     managedDisk: {
-    //       storageAccountType: 'Premium_LRS'
-    //     }
-    //   }
-    // ]
-    // diagnosticSettings: [
-    //   {
-    //     eventHubAuthorizationRuleResourceId: '<eventHubAuthorizationRuleResourceId>'
-    //     eventHubName: '<eventHubName>'
-    //     metricCategories: [
-    //       {
-    //         category: 'AllMetrics'
-    //       }
-    //     ]
-    //     name: 'customSetting'
-    //     storageAccountResourceId: '<storageAccountResourceId>'
-    //     workspaceResourceId: '<workspaceResourceId>'
-    //   }
-    // ]
     disablePasswordAuthentication: true
     encryptionAtHost: false
-    // extensionAzureDiskEncryptionConfig: {
-    //   enabled: true
-    //   settings: {
-    //     EncryptionOperation: 'EnableEncryption'
-    //     KekVaultResourceId: '<KekVaultResourceId>'
-    //     KeyEncryptionAlgorithm: 'RSA-OAEP'
-    //     KeyEncryptionKeyURL: '<KeyEncryptionKeyURL>'
-    //     KeyVaultResourceId: '<KeyVaultResourceId>'
-    //     KeyVaultURL: '<KeyVaultURL>'
-    //     ResizeOSDisk: 'false'
-    //     VolumeType: 'All'
-    //   }
-    // }
-    // extensionCustomScriptConfig: {
-    //   protectedSettings: {
-    //     managedIdentityResourceId: '<managedIdentityResourceId>'
-    //   }
-    //   settings: {
-    //     commandToExecute: '<commandToExecute>'
-    //     fileUris: [
-    //       '<storageAccountCSEFileUrl>'
-    //     ]
-    //   }
-    // }
-    // extensionDependencyAgentConfig: {
-    //   enabled: true
-    // }
     extensionMonitoringAgentConfig: {
       autoUpgradeMinorVersion: true
       enabled: true
@@ -111,48 +54,16 @@ module virtualMachineScaleSet 'br/public:avm/res/compute/virtual-machine-scale-s
     extensionNetworkWatcherAgentConfig: {
       enabled: true
     }
-    location: 'eastus'
-    // lock: {
-    //   kind: 'CanNotDelete'
-    //   name: 'myCustomLockName'
-    // }
-    // managedIdentities: {
-    //   systemAssigned: false
-    //   userAssignedResourceIds: []
-    // }
+    location: location
     publicKeys: [
       {
         keyData: loadTextContent('temp/id_rsa.pub')
         path: '/home/scaleSetAdmin/.ssh/authorized_keys'
       }
     ]
-    // roleAssignments: [
-    //   {
-    //     name: '8abf72f9-e918-4adc-b20b-c783b8799065'
-    //     principalId: '<principalId>'
-    //     principalType: 'ServicePrincipal'
-    //     roleDefinitionIdOrName: 'Owner'
-    //   }
-    //   {
-    //     name: '<name>'
-    //     principalId: '<principalId>'
-    //     principalType: 'ServicePrincipal'
-    //     roleDefinitionIdOrName: 'b24988ac-6180-42a0-ab88-20f7382dd24c'
-    //   }
-    //   {
-    //     principalId: '<principalId>'
-    //     principalType: 'ServicePrincipal'
-    //     roleDefinitionIdOrName: '<roleDefinitionIdOrName>'
-    //   }
-    // ]
     scaleSetFaultDomain: 1
-    skuCapacity: 1
-    // tags: {
-    //   Environment: 'Non-Prod'
-    //   'hidden-title': 'This is visible in the resource name'
-    //   Role: 'DeploymentValidation'
-    // }
-    upgradePolicyMode: 'Rolling'
+    skuCapacity: 2
+    upgradePolicyMode: 'Automatic'
     vmNamePrefix: 'vmsslinvm'
     vmPriority: 'Regular'
   }
@@ -161,25 +72,15 @@ module virtualMachineScaleSet 'br/public:avm/res/compute/virtual-machine-scale-s
 module virtualNetwork 'br/public:avm/res/network/virtual-network:0.7.0' = {
   name: 'virtualNetworkDeployment'
   params: {
-    // Required parameters
     addressPrefixes: [
       '10.0.0.0/16'
     ]
     name: 'nvnipam001'
-    // Non-required parameters
-    location: 'eastus'
+    location: location
     subnets: [
       {
         addressPrefix: '10.0.0.0/24'
         name: 'subnet-1'
-      }
-      {
-        addressPrefix: '10.0.1.0/24'
-        name: 'subnet-2'
-      }
-      {
-        addressPrefix: '10.0.2.0/24'
-        name: 'subnet-3'
       }
     ]
   }
@@ -188,25 +89,154 @@ module virtualNetwork 'br/public:avm/res/network/virtual-network:0.7.0' = {
 module publicIpAddress 'br/public:avm/res/network/public-ip-address:0.9.0' = {
   name: 'publicIpAddressDeployment'
   params: {
-    // Required parameters
     name: 'npiamin001'
-    // Non-required parameters
-    location: 'eastus'
+    location: location
   }
 }
 
 module loadBalancer 'br/public:avm/res/network/load-balancer:0.4.2' = {
   name: 'loadBalancerDeployment'
   params: {
-    // Required parameters
     frontendIPConfigurations: [
       {
         name: 'publicIPConfig1'
         publicIPAddressId: publicIpAddress.outputs.resourceId
       }
     ]
-    name: 'nlbmin001'
-    // Non-required parameters
-    location: 'eastus'
+    name: 'nlbext001'
+    backendAddressPools: [
+      {
+        name: 'backendAddressPool1'
+      }
+      {
+        name: 'backendAddressPool2'
+      }
+    ]
+    inboundNatRules: [
+      {
+        name: 'sshNatPool'
+        protocol: 'Tcp'
+        frontendIPConfigurationName: 'publicIPConfig1'
+        frontendPortRangeStart: 1000
+        frontendPortRangeEnd: 1099
+        backendPort: 22
+        backendAddressPoolName: 'backendAddressPool1'
+      }
+    ]
+    loadBalancingRules: [
+      {
+        backendAddressPoolName: 'backendAddressPool1'
+        backendPort: 80
+        disableOutboundSnat: true
+        enableFloatingIP: false
+        enableTcpReset: false
+        frontendIPConfigurationName: 'publicIPConfig1'
+        frontendPort: 80
+        idleTimeoutInMinutes: 5
+        loadDistribution: 'Default'
+        name: 'publicIPLBRule1'
+        probeName: 'probe1'
+        protocol: 'Tcp'
+      }
+    ]
+    location: location
+    probes: [
+      {
+        intervalInSeconds: 10
+        name: 'probe1'
+        numberOfProbes: 5
+        port: 80
+        protocol: 'Http'
+        requestPath: '/http-probe'
+      }
+      {
+        name: 'probe2'
+        port: 443
+        protocol: 'Https'
+        requestPath: '/https-probe'
+      }
+    ]
+  }
+}
+
+module networkSecurityGroup 'br/public:avm/res/network/network-security-group:0.5.1' = {
+  name: 'networkSecurityGroupDeployment'
+  params: {
+    name: 'nnsgmax001'
+    location: location
+    securityRules: [
+      {
+        name: 'SSH-NSG'
+        properties: {
+          access: 'Allow'
+          description: 'SSH remote access'
+          destinationAddressPrefix: '*'
+          destinationPortRange: '22'
+          direction: 'Inbound'
+          priority: 100
+          protocol: 'Tcp'
+          sourceAddressPrefix: '*'
+          sourcePortRange: '*'
+        }
+      }
+    ]
+  }
+}
+
+resource autoScaleSettings 'microsoft.insights/autoscalesettings@2015-04-01' = {
+  name: 'cpuautoscale'
+  location: location
+  properties: {
+    name: 'cpuautoscale'
+    targetResourceUri: virtualMachineScaleSet.outputs.resourceId
+    enabled: true
+    profiles: [
+      {
+        name: 'Profile1'
+        capacity: {
+          minimum: '1'
+          maximum: '10'
+          default: '1'
+        }
+        rules: [
+          {
+            metricTrigger: {
+              metricName: 'Percentage CPU'
+              metricResourceUri: virtualMachineScaleSet.outputs.resourceId
+              timeGrain: 'PT1M'
+              timeWindow: 'PT5M'
+              timeAggregation: 'Average'
+              operator: 'GreaterThan'
+              threshold: 50
+              statistic: 'Average'
+            }
+            scaleAction: {
+              direction: 'Increase'
+              type: 'ChangeCount'
+              value: '1'
+              cooldown: 'PT5M'
+            }
+          }
+          {
+            metricTrigger: {
+              metricName: 'Percentage CPU'
+              metricResourceUri: virtualMachineScaleSet.outputs.resourceId
+              timeGrain: 'PT1M'
+              timeWindow: 'PT5M'
+              timeAggregation: 'Average'
+              operator: 'LessThan'
+              threshold: 30
+              statistic: 'Average'
+            }
+            scaleAction: {
+              direction: 'Decrease'
+              type: 'ChangeCount'
+              value: '1'
+              cooldown: 'PT5M'
+            }
+          }
+        ]
+      }
+    ]
   }
 }
