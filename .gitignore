@@ -1,4 +1,6 @@
-notes
+keys/
+outputs/
+notes*
 temp/
 .terraform*
 *.tfstate
