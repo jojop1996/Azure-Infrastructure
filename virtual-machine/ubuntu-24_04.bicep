@@ -91,6 +91,11 @@ module publicIpAddress 'br/public:avm/res/network/public-ip-address:0.9.0' = {
   params: {
     name: 'npiamin001'
     location: location
+    dnsSettings: {
+      domainNameLabel: 'cvmsslindns'
+      domainNameLabelScope: 'ResourceGroupReuse'
+      fqdn: 'testdns'
+    }    
   }
 }
 
