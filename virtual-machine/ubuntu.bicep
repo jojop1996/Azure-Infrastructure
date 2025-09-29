@@ -2,15 +2,98 @@
 @minLength(1)
 param location string = resourceGroup().location
 
+@description('Name of the virtual machine scale set.')
+param vmssName string
+
+@description('Admin username for the scale set.')
+param adminUsername string
+
+@description('Path to the admin password file.')
+@secure()
+param adminPassword string
+
+@description('Path to the SSH public key file.')
+@secure()
+param sshPublicKey string
+
+@description('Image reference ID for the scale set.')
+param imageReferenceId string
+
+@description('OS disk size in GB.')
+param osDiskSizeGB int
+
+@description('OS disk storage account type.')
+param osDiskStorageAccountType string
+
+@description('VM SKU name.')
+param vmSkuName string
+
+@description('Availability zones.')
+param availabilityZones array
+
+@description('Scale set fault domain count.')
+param scaleSetFaultDomain int
+
+@description('Initial capacity of scale set.')
+param skuCapacity int
+
+@description('Upgrade policy mode.')
+param upgradePolicyMode string
+
+@description('VM name prefix.')
+param vmNamePrefix string
+
+@description('Virtual network name.')
+param vnetName string
+
+@description('Address prefixes for the virtual network.')
+param vnetAddressPrefixes array
+
+@description('Subnet name.')
+param subnetName string
+
+@description('Subnet address prefix.')
+param subnetAddressPrefix string
+
+@description('Public IP name.')
+param publicIpName string
+
+@description('DNS label for the public IP.')
+param dnsLabelName string
+
+@description('Load balancer name.')
+param loadBalancerName string
+
+@description('Network security group name.')
+param nsgName string
+
+@description('Auto-scale settings name.')
+param autoScaleSettingsName string
+
+@description('Auto-scale minimum capacity.')
+param autoScaleMinimum string
+
+@description('Auto-scale maximum capacity.')
+param autoScaleMaximum string
+
+@description('Auto-scale default capacity.')
+param autoScaleDefault string
+
+@description('CPU threshold to scale up.')
+param cpuThresholdToScaleUp int
+
+@description('CPU threshold to scale down.')
+param cpuThresholdToScaleDown int
+
 module virtualMachineScaleSet 'br/public:avm/res/compute/virtual-machine-scale-set:0.11.0' = {
   name: 'virtualMachineScaleSetDeployment'
   params: {
-    adminPassword: loadTextContent('temp/linux_password')
-    adminUsername: 'scaleSetAdmin'
+    adminPassword: adminPassword
+    adminUsername: adminUsername
     imageReference: {
-      id: '/subscriptions/95273533-6484-4c3f-b494-a7db2c17d6fd/resourceGroups/rg-packer-images/providers/Microsoft.Compute/images/ubuntu-24_04-lts-nginx'
+      id: imageReferenceId
     }
-    name: 'cvmsslinmax001'
+    name: vmssName
     nicConfigurations: [
       {
         ipConfigurations: [
@@ -34,16 +117,14 @@ module virtualMachineScaleSet 'br/public:avm/res/compute/virtual-machine-scale-s
     ]
     osDisk: {
       createOption: 'fromImage'
-      diskSizeGB: 128
+      diskSizeGB: osDiskSizeGB
       managedDisk: {
-        storageAccountType: 'Standard_LRS'
+        storageAccountType: osDiskStorageAccountType
       }
     }
     osType: 'Linux'
-    skuName: 'Standard_D2s_v3'
-    availabilityZones: [
-      2
-    ]
+    skuName: vmSkuName
+    availabilityZones: availabilityZones
     bootDiagnosticEnabled: true
     disablePasswordAuthentication: true
     encryptionAtHost: false
@@ -57,14 +138,14 @@ module virtualMachineScaleSet 'br/public:avm/res/compute/virtual-machine-scale-s
     location: location
     publicKeys: [
       {
-        keyData: loadTextContent('temp/id_rsa.pub')
-        path: '/home/scaleSetAdmin/.ssh/authorized_keys'
+        keyData: sshPublicKey
+        path: '/home/${adminUsername}/.ssh/authorized_keys'
       }
     ]
-    scaleSetFaultDomain: 1
-    skuCapacity: 2
-    upgradePolicyMode: 'Automatic'
-    vmNamePrefix: 'vmsslinvm'
+    scaleSetFaultDomain: scaleSetFaultDomain
+    skuCapacity: skuCapacity
+    upgradePolicyMode: upgradePolicyMode
+    vmNamePrefix: vmNamePrefix
     vmPriority: 'Regular'
   }
 }
@@ -72,15 +153,13 @@ module virtualMachineScaleSet 'br/public:avm/res/compute/virtual-machine-scale-s
 module virtualNetwork 'br/public:avm/res/network/virtual-network:0.7.0' = {
   name: 'virtualNetworkDeployment'
   params: {
-    addressPrefixes: [
-      '10.0.0.0/16'
-    ]
-    name: 'nvnipam001'
+    addressPrefixes: vnetAddressPrefixes
+    name: vnetName
     location: location
     subnets: [
       {
-        addressPrefix: '10.0.0.0/24'
-        name: 'subnet-1'
+        addressPrefix: subnetAddressPrefix
+        name: subnetName
       }
     ]
   }
@@ -89,10 +168,10 @@ module virtualNetwork 'br/public:avm/res/network/virtual-network:0.7.0' = {
 module publicIpAddress 'br/public:avm/res/network/public-ip-address:0.9.0' = {
   name: 'publicIpAddressDeployment'
   params: {
-    name: 'npiamin001'
+    name: publicIpName
     location: location
     dnsSettings: {
-      domainNameLabel: 'cvmsslindns'
+      domainNameLabel: dnsLabelName
       domainNameLabelScope: 'ResourceGroupReuse'
       fqdn: 'testdns'
     }    
@@ -108,13 +187,10 @@ module loadBalancer 'br/public:avm/res/network/load-balancer:0.4.2' = {
         publicIPAddressId: publicIpAddress.outputs.resourceId
       }
     ]
-    name: 'nlbext001'
+    name: loadBalancerName
     backendAddressPools: [
       {
         name: 'backendAddressPool1'
-      }
-      {
-        name: 'backendAddressPool2'
       }
     ]
     inboundNatRules: [
@@ -136,7 +212,7 @@ module loadBalancer 'br/public:avm/res/network/load-balancer:0.4.2' = {
         enableFloatingIP: false
         enableTcpReset: false
         frontendIPConfigurationName: 'publicIPConfig1'
-        frontendPort: 80
+        frontendPort: 443
         idleTimeoutInMinutes: 5
         loadDistribution: 'Default'
         name: 'publicIPLBRule1'
@@ -167,7 +243,7 @@ module loadBalancer 'br/public:avm/res/network/load-balancer:0.4.2' = {
 module networkSecurityGroup 'br/public:avm/res/network/network-security-group:0.5.1' = {
   name: 'networkSecurityGroupDeployment'
   params: {
-    name: 'nnsgmax001'
+    name: nsgName
     location: location
     securityRules: [
       {
@@ -189,19 +265,19 @@ module networkSecurityGroup 'br/public:avm/res/network/network-security-group:0.
 }
 
 resource autoScaleSettings 'microsoft.insights/autoscalesettings@2015-04-01' = {
-  name: 'cpuautoscale'
+  name: autoScaleSettingsName
   location: location
   properties: {
-    name: 'cpuautoscale'
+    name: autoScaleSettingsName
     targetResourceUri: virtualMachineScaleSet.outputs.resourceId
     enabled: true
     profiles: [
       {
         name: 'Profile1'
         capacity: {
-          minimum: '1'
-          maximum: '10'
-          default: '1'
+          minimum: autoScaleMinimum
+          maximum: autoScaleMaximum
+          default: autoScaleDefault
         }
         rules: [
           {
@@ -212,7 +288,7 @@ resource autoScaleSettings 'microsoft.insights/autoscalesettings@2015-04-01' = {
               timeWindow: 'PT5M'
               timeAggregation: 'Average'
               operator: 'GreaterThan'
-              threshold: 50
+              threshold: cpuThresholdToScaleUp
               statistic: 'Average'
             }
             scaleAction: {
@@ -230,7 +306,7 @@ resource autoScaleSettings 'microsoft.insights/autoscalesettings@2015-04-01' = {
               timeWindow: 'PT5M'
               timeAggregation: 'Average'
               operator: 'LessThan'
-              threshold: 30
+              threshold: cpuThresholdToScaleDown
               statistic: 'Average'
             }
             scaleAction: {
